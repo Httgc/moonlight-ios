@@ -18,7 +18,7 @@ jobs:
 
       - name: Build Project (Unsigned)
         run: |
-          # 使用死锁的目标 Scheme 名 "Moonlight" 进行无签名编译
+          # 强制指定 Scheme 名字为 Moonlight 进行无签名编译
           xcodebuild clean build \
                      -project Moonlight.xcodeproj \
                      -scheme "Moonlight" \
