@@ -5,23 +5,37 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13 # 切换到更稳定的 macos-13 环境，兼容性更好
+    runs-on: macos-14 # 恢复到最新系统环境
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          submodules: recursive # 确保完整拉取所有子模块
+          submodules: recursive # 完整拉取子模块
 
       - name: Select Xcode Version
-        run: sudo xcode-select -s /Applications/Xcode_14.3.1.app # 使用更匹配该源码时期的 Xcode 版本
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
 
-      - name: Clean and Build Project (Unsigned)
+      - name: Auto-Detect Scheme and Build
         run: |
-          # 清理并开始编译，强制跳过签名限制
+          # 1. 自动列出并检测项目中包含 ios 关键字的有效 Scheme
+          echo "=== 正在检测项目支持的编译方案 ==="
+          xcodebuild -list -project Moonlight.xcodeproj
+          
+          # 自动寻找包含 "iOS" 或 "Moonlight" 的 Scheme，如果找不到则默认用第一个
+          SCHEME_NAME=$(xcodebuild -list -project Moonlight.xcodeproj | grep -E "Moonlight|iOS" | sed 's/^[[:space:]]*//' | head -n 1)
+          
+          if [ -z "$SCHEME_NAME" ]; then
+            # 保底方案：取 Targets 列表下的第一个
+            SCHEME_NAME=$(xcodebuild -list -project Moonlight.xcodeproj | awk '/Targets:/,/Build Configurations:/{if($0!~/Targets:/&&$0!~/Build Configurations:/) print}' | sed 's/^[[:space:]]*//' | head -n 1)
+          fi
+          
+          echo "=== 最终决定使用的 Scheme 名字为: [$SCHEME_NAME] ==="
+
+          # 2. 执行跳过签名的全自动编译
           xcodebuild clean build \
                      -project Moonlight.xcodeproj \
-                     -scheme "Moonlight iOS" \
+                     -scheme "$SCHEME_NAME" \
                      -configuration Release \
                      -sdk iphoneos \
                      -derivedDataPath build \
@@ -32,7 +46,6 @@ jobs:
 
       - name: Package Payload to IPA
         run: |
-          # 创建标准的 IPA 目录结构
           mkdir -p Payload
           
           # 寻找编译出的 .app 并复制到 Payload 文件夹
@@ -43,8 +56,6 @@ jobs:
           fi
           
           cp -r "$APP_PATH" Payload/
-          
-          # 打包成未签名的 ipa
           zip -r Moonlight_LiveContainer.ipa Payload
           
       - name: Upload IPA Artifact
