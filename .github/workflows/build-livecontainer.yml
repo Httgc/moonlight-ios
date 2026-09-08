@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14 # 恢复到最新系统环境
+    runs-on: macos-14 # 使用最新的系统环境
     
     steps:
       - name: Checkout repository
@@ -16,26 +16,12 @@ jobs:
       - name: Select Xcode Version
         run: sudo xcode-select -s /Applications/Xcode_15.4.app
 
-      - name: Auto-Detect Scheme and Build
+      - name: Build Project (Unsigned)
         run: |
-          # 1. 自动列出并检测项目中包含 ios 关键字的有效 Scheme
-          echo "=== 正在检测项目支持的编译方案 ==="
-          xcodebuild -list -project Moonlight.xcodeproj
-          
-          # 自动寻找包含 "iOS" 或 "Moonlight" 的 Scheme，如果找不到则默认用第一个
-          SCHEME_NAME=$(xcodebuild -list -project Moonlight.xcodeproj | grep -E "Moonlight|iOS" | sed 's/^[[:space:]]*//' | head -n 1)
-          
-          if [ -z "$SCHEME_NAME" ]; then
-            # 保底方案：取 Targets 列表下的第一个
-            SCHEME_NAME=$(xcodebuild -list -project Moonlight.xcodeproj | awk '/Targets:/,/Build Configurations:/{if($0!~/Targets:/&&$0!~/Build Configurations:/) print}' | sed 's/^[[:space:]]*//' | head -n 1)
-          fi
-          
-          echo "=== 最终决定使用的 Scheme 名字为: [$SCHEME_NAME] ==="
-
-          # 2. 执行跳过签名的全自动编译
+          # 使用死锁的目标 Scheme 名 "Moonlight" 进行无签名编译
           xcodebuild clean build \
                      -project Moonlight.xcodeproj \
-                     -scheme "$SCHEME_NAME" \
+                     -scheme "Moonlight" \
                      -configuration Release \
                      -sdk iphoneos \
                      -derivedDataPath build \
