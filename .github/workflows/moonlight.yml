@@ -1,0 +1,47 @@
+name: Build IPA for LiveContainer
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Select Xcode Version
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      - name: Build Project (Unsigned)
+        run: |
+          xcodebuild clean build \
+                     -project Moonlight.xcodeproj \
+                     -scheme "Moonlight" \
+                     -configuration Release \
+                     -sdk iphoneos \
+                     -derivedDataPath build \
+                     CODE_SIGNING_ALLOWED=NO \
+                     CODE_SIGNING_REQUIRED=NO \
+                     CODE_SIGN_IDENTITY="" \
+                     PROVISIONING_PROFILE_SPECIFIER=""
+
+      - name: Package Payload to IPA
+        run: |
+          mkdir -p Payload
+          APP_PATH=$(find build/Build/Products/Release-iphoneos -name "*.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "错误：未找到编译生成的 .app 文件！"
+            exit 1
+          fi
+          cp -r "$APP_PATH" Payload/
+          zip -r Moonlight_LiveContainer.ipa Payload
+          
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Moonlight-LiveContainer-IPA
+          path: Moonlight_LiveContainer.ipa
